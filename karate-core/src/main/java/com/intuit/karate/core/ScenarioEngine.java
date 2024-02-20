@@ -207,7 +207,8 @@ public class ScenarioEngine {
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 String exp = (String) entry.getValue();
                 Variable sv = evalKarateExpression(exp);
-                if (sv.isNull() && !isWithinParentheses(exp)) { // by default empty / null will be stripped, force null like this: '(null)'
+                if (sv.isNull() && !isWithinParentheses(exp)) { // by default empty / null will be stripped, force null
+                                                                // like this: '(null)'
                     toRemove.add(entry.getKey());
                 } else {
                     if (sv.isString()) {
@@ -269,7 +270,7 @@ public class ScenarioEngine {
     }
 
     // gatling =================================================================
-    //   
+    //
     private PerfEvent prevPerfEvent;
 
     public void logLastPerfEvent(String failureMessage) {
@@ -575,23 +576,32 @@ public class ScenarioEngine {
         return response;
     }
 
+    boolean[] httpInvokeOnceCoverage = new boolean[17];
+
     private void httpInvokeOnce() {
+        System.out.println("Testing httpInvokeOnce now");
+        httpInvokeOnceCoverage[0] = true;
         Map<String, Map> cookies = getOrEvalAsMap(config.getCookies());
         if (cookies != null) {
+            httpInvokeOnceCoverage[1] = true;
             requestBuilder.cookies(cookies.values());
         }
         Map<String, Object> headers;
         if (config.getHeaders().isJsOrJavaFunction()) {
+            httpInvokeOnceCoverage[2] = true;
             headers = getOrEvalAsMap(config.getHeaders(), requestBuilder.build());
         } else {
+            httpInvokeOnceCoverage[3] = true;
             headers = getOrEvalAsMap(config.getHeaders()); // avoid an extra http request build
         }
         if (headers != null) {
+            httpInvokeOnceCoverage[4] = true;
             requestBuilder.headers(headers);
         }
         httpRequest = requestBuilder.build();
         String perfEventName = null; // acts as a flag to report perf if not null
         if (runtime.perfMode) {
+            httpInvokeOnceCoverage[5] = true;
             perfEventName = runtime.featureRuntime.perfHook.getPerfEventName(httpRequest, runtime);
         }
         long startTime = System.currentTimeMillis();
@@ -603,15 +613,19 @@ public class ScenarioEngine {
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
-            String message = "http call failed after " + responseTime + " milliseconds for url: " + httpRequest.getUrl();
+            String message = "http call failed after " + responseTime + " milliseconds for url: "
+                    + httpRequest.getUrl();
             logger.error(e.getMessage() + ", " + message);
             if (logger.isTraceEnabled()) {
+                httpInvokeOnceCoverage[6] = true;
                 String stacktrace = StringUtils.throwableToString(e);
                 if (stacktrace != null) {
+                    httpInvokeOnceCoverage[7] = true;
                     logger.trace(stacktrace);
                 }
             }
             if (perfEventName != null) {
+                httpInvokeOnceCoverage[8] = true;
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
                 capturePerfEvent(pe); // failure flag and message should be set by logLastPerfEvent()
             }
@@ -627,9 +641,11 @@ public class ScenarioEngine {
         String responseType;
         ResourceType resourceType = response.getResourceType();
         if (resourceType != null && resourceType.isBinary()) {
+            httpInvokeOnceCoverage[9] = true;
             responseType = "binary";
             body = bytes;
         } else {
+            httpInvokeOnceCoverage[10] = true;
             try {
                 body = JsonUtils.fromBytes(bytes, true, resourceType);
             } catch (Exception e) {
@@ -637,10 +653,13 @@ public class ScenarioEngine {
                 logger.warn("auto-conversion of response failed: {}", e.getMessage());
             }
             if (body instanceof Map || body instanceof List) {
+                httpInvokeOnceCoverage[11] = true;
                 responseType = "json";
             } else if (body instanceof Node) {
+                httpInvokeOnceCoverage[12] = true;
                 responseType = "xml";
             } else {
+                httpInvokeOnceCoverage[13] = true;
                 responseType = "string";
             }
         }
@@ -649,8 +668,10 @@ public class ScenarioEngine {
         setVariable(RESPONSE_STATUS, response.getStatus());
         setVariable(RESPONSE, body);
         if (config.isLowerCaseResponseHeaders()) {
+            httpInvokeOnceCoverage[14] = true;
             setVariable(RESPONSE_HEADERS, response.getHeadersWithLowerCaseNames());
         } else {
+            httpInvokeOnceCoverage[15] = true;
             setVariable(RESPONSE_HEADERS, response.getHeaders());
         }
         setHiddenVariable(RESPONSE_BYTES, bytes);
@@ -659,6 +680,7 @@ public class ScenarioEngine {
         updateConfigCookies(cookies);
         setHiddenVariable(RESPONSE_COOKIES, cookies);
         if (perfEventName != null) {
+            httpInvokeOnceCoverage[16] = true;
             PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
             capturePerfEvent(pe);
         }
@@ -749,7 +771,7 @@ public class ScenarioEngine {
                 throw new RuntimeException("unknown channel type");
         }
     }
-        
+
     private Channel channel(String type) {
         String factoryClass = getFactory(type);
         try {
@@ -762,50 +784,51 @@ public class ScenarioEngine {
         } catch (Exception e) {
             String message;
             if (e instanceof ClassNotFoundException) {
-                message = "cannot instantiate [" + type + "], is 'karate-" + type + "' included as a maven / gradle dependency ?";
+                message = "cannot instantiate [" + type + "], is 'karate-" + type
+                        + "' included as a maven / gradle dependency ?";
             } else {
                 message = e.getMessage();
             }
             logger.error(message);
             throw new RuntimeException(message, e);
-        }        
+        }
     }
-        
+
     public void produce(String type) {
         Channel channel = channel(type);
         channel.produce(runtime);
     }
-    
+
     public ChannelSession consume(String type) {
         Channel channel = channel(type);
-        return channel.consume(runtime);        
+        return channel.consume(runtime);
     }
-    
+
     public void register(String expression) {
         Variable v = evalKarateExpression(expression);
         Channel channel = channel("kafka");
         Map<String, Object> map = v.getValue();
         channel.register(runtime, map);
-    }       
-    
+    }
+
     public void schema(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setSchema(v.getAsString());
     }
-    
+
     public void topic(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setTopic(v.getAsString());
     }
-    
+
     public void key(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setKey(v.getAsString());
-    }    
-    
+    }
+
     public void value(String exp) {
         request(exp);
-    }     
+    }
 
     // http mock ===============================================================
     //
@@ -844,7 +867,7 @@ public class ScenarioEngine {
     }
 
     // websocket / async =======================================================
-    //   
+    //
     private List<WebSocketClient> webSocketClients;
     private CompletableFuture SIGNAL = new CompletableFuture();
 
@@ -947,7 +970,8 @@ public class ScenarioEngine {
             StringBuilder sb = new StringBuilder();
             sb.append("(function(){ if (arguments.length == 0) return ").append(invoke).append("();")
                     .append(" if (arguments.length == 1) return ").append(invoke).append("(arguments[0]);")
-                    .append(" if (arguments.length == 2) return ").append(invoke).append("(arguments[0], arguments[1]);")
+                    .append(" if (arguments.length == 2) return ").append(invoke)
+                    .append("(arguments[0], arguments[1]);")
                     .append(" return ").append(invoke).append("(arguments[0], arguments[1], arguments[2]) })");
             setHiddenVariable(methodName, evalJs(sb.toString()));
         }
@@ -956,7 +980,8 @@ public class ScenarioEngine {
     public void driver(String exp) {
         Variable v = evalKarateExpression(exp);
         // re-create driver within a test if needed
-        // but user is expected to call quit() OR use the driver keyword with a JSON argument
+        // but user is expected to call quit() OR use the driver keyword with a JSON
+        // argument
         if (driver == null || driver.isTerminated() || v.isMap()) {
             Map<String, Object> options = config.getCustomOptions().get(Config.DRIVER);
             if (options == null) {
@@ -992,7 +1017,8 @@ public class ScenarioEngine {
             } catch (KarateException ke) {
                 throw ke;
             } catch (Exception e) {
-                String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? " + e.getMessage();
+                String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? "
+                        + e.getMessage();
                 logger.error(message);
                 throw new RuntimeException(message, e);
             }
@@ -1043,7 +1069,7 @@ public class ScenarioEngine {
             if (webSocketClients != null) {
                 webSocketClients.forEach(WebSocketClient::close);
             }
-            if (driver != null) { // TODO move this to Plugin.afterScenario()                
+            if (driver != null) { // TODO move this to Plugin.afterScenario()
                 DriverOptions options = driver.getOptions();
                 if (options.stop) {
                     driver.quit();
@@ -1077,7 +1103,7 @@ public class ScenarioEngine {
     }
 
     // doc =====================================================================
-    //    
+    //
     private KarateTemplateEngine templateEngine;
 
     private ResourceResolver resourceResolver;
@@ -1090,7 +1116,8 @@ public class ScenarioEngine {
         if (resourceResolver != null) {
             return resourceResolver;
         }
-        String prefixedPath = runtime.featureRuntime.rootFeature.featureCall.feature.getResource().getPrefixedParentPath();
+        String prefixedPath = runtime.featureRuntime.rootFeature.featureCall.feature.getResource()
+                .getPrefixedParentPath();
         return new ResourceResolver(prefixedPath);
     }
 
@@ -1138,7 +1165,8 @@ public class ScenarioEngine {
         return html;
     }
 
-    // compareImage =====================================================================
+    // compareImage
+    // =====================================================================
     //
     public void compareImage(String exp) {
         Variable v = evalKarateExpression(exp);
@@ -1218,9 +1246,9 @@ public class ScenarioEngine {
         return fn == null ? null : fn.toString();
     }
 
-    //==========================================================================        
-    //       
-    public void init() { // not in constructor because it has to be on Runnable.run() thread 
+    // ==========================================================================
+    //
+    public void init() { // not in constructor because it has to be on Runnable.run() thread
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
         runtime.magicVariables.forEach((k, v) -> JS.put(k, v));
@@ -1271,7 +1299,7 @@ public class ScenarioEngine {
                 ProxyExecutable pe = var.getValue();
                 Object result = JsEngine.execute(pe, args);
                 return new Variable(result);
-            case JAVA_FUNCTION:  // definitely a "call" with a single argument
+            case JAVA_FUNCTION: // definitely a "call" with a single argument
                 Function javaFunction = var.getValue();
                 Object arg = args.length == 0 ? null : args[0];
                 Object javaResult = javaFunction.apply(arg);
@@ -1343,7 +1371,8 @@ public class ScenarioEngine {
             throw new RuntimeException("'karate' is a reserved name");
         }
         if (REQUEST.equals(name) || "url".equals(name)) {
-            throw new RuntimeException("'" + name + "' is a reserved name, also use the form '* " + name + " <expression>' instead");
+            throw new RuntimeException(
+                    "'" + name + "' is a reserved name, also use the form '* " + name + " <expression>' instead");
         }
     }
 
@@ -1386,7 +1415,8 @@ public class ScenarioEngine {
     }
 
     private Map<String, Object> Map(Object callResult) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
 
     private static class EmbedAction {
@@ -1487,7 +1517,8 @@ public class ScenarioEngine {
                             return EmbedAction.remove();
                         }
                         if (forMatch && (result.isObject() || result.isArray())) {
-                            // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
+                            // preserve optional JSON chunk schema-like references as-is, they are needed
+                            // for future match attempts
                             return null;
                         }
                     }
@@ -1502,25 +1533,33 @@ public class ScenarioEngine {
         }
     }
 
+    boolean[] recurseXmlCoverage = new boolean[23];
+
     private void recurseXmlEmbeddedExpressions(Node node, boolean forMatch) {
+        recurseXmlCoverage[0] = true;
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
+            recurseXmlCoverage[1] = true;
             node = node.getFirstChild();
         }
         NamedNodeMap attribs = node.getAttributes();
         int attribCount = attribs == null ? 0 : attribs.getLength();
         Set<Attr> attributesToRemove = new HashSet(attribCount);
         for (int i = 0; i < attribCount; i++) {
+            recurseXmlCoverage[2] = true;
             Attr attrib = (Attr) attribs.item(i);
             String value = attrib.getValue();
             value = StringUtils.trimToNull(value);
             if (isEmbeddedExpression(value)) {
+                recurseXmlCoverage[3] = true;
                 boolean optional = value.charAt(1) == '#';
                 value = value.substring(optional ? 2 : 1);
                 try {
                     JsValue jv = JS.eval(value);
                     if (optional && jv.isNull()) {
+                        recurseXmlCoverage[4] = true;
                         attributesToRemove.add(attrib);
                     } else {
+                        recurseXmlCoverage[5] = true;
                         attrib.setValue(jv.getAsString());
                     }
                 } catch (Exception e) {
@@ -1529,45 +1568,61 @@ public class ScenarioEngine {
             }
         }
         for (Attr toRemove : attributesToRemove) {
+            recurseXmlCoverage[6] = true;
             attribs.removeNamedItem(toRemove.getName());
         }
         NodeList nodeList = node.getChildNodes();
         int childCount = nodeList.getLength();
         List<Node> nodes = new ArrayList(childCount);
         for (int i = 0; i < childCount; i++) {
+            recurseXmlCoverage[7] = true;
             nodes.add(nodeList.item(i));
         }
         Set<Node> elementsToRemove = new HashSet(childCount);
         for (Node child : nodes) {
+            recurseXmlCoverage[8] = true;
             String value = child.getNodeValue();
             if (value != null) {
+                recurseXmlCoverage[9] = true;
                 value = StringUtils.trimToEmpty(value);
                 if (isEmbeddedExpression(value)) {
+                    recurseXmlCoverage[10] = true;
                     boolean optional = value.charAt(1) == '#';
                     value = value.substring(optional ? 2 : 1);
                     try {
                         JsValue jv = JS.eval(value);
                         if (optional) {
+                            recurseXmlCoverage[11] = true;
                             if (jv.isNull()) {
+                                recurseXmlCoverage[12] = true;
                                 elementsToRemove.add(child);
                             } else if (forMatch && (jv.isXml() || jv.isObject())) {
-                                // preserve optional XML chunk schema-like references as-is, they are needed for future match attempts
+                                recurseXmlCoverage[13] = true;
+                                // preserve optional XML chunk schema-like references as-is, they are needed for
+                                // future match attempts
                             } else {
+                                recurseXmlCoverage[14] = true;
                                 child.setNodeValue(jv.getAsString());
                             }
                         } else {
+                            recurseXmlCoverage[15] = true;
                             if (jv.isXml() || jv.isObject()) {
+                                recurseXmlCoverage[16] = true;
                                 Node evalNode = jv.isXml() ? jv.getValue() : XmlUtils.fromMap(jv.getValue());
                                 if (evalNode.getNodeType() == Node.DOCUMENT_NODE) {
+                                    recurseXmlCoverage[17] = true;
                                     evalNode = evalNode.getFirstChild();
                                 }
                                 if (child.getNodeType() == Node.CDATA_SECTION_NODE) {
+                                    recurseXmlCoverage[18] = true;
                                     child.setNodeValue(XmlUtils.toString(evalNode));
                                 } else {
+                                    recurseXmlCoverage[19] = true;
                                     evalNode = node.getOwnerDocument().importNode(evalNode, true);
                                     child.getParentNode().replaceChild(evalNode, child);
                                 }
                             } else {
+                                recurseXmlCoverage[20] = true;
                                 child.setNodeValue(jv.getAsString());
                             }
                         }
@@ -1576,13 +1631,16 @@ public class ScenarioEngine {
                     }
                 }
             } else if (child.hasChildNodes() || child.hasAttributes()) {
+                recurseXmlCoverage[21] = true;
                 recurseXmlEmbeddedExpressions(child, forMatch);
             }
         }
-        for (Node toRemove : elementsToRemove) { // because of how the above routine works, these are always of type TEXT_NODE
+        for (Node toRemove : elementsToRemove) { // because of how the above routine works, these are always of type
+                                                 // TEXT_NODE
             Node parent = toRemove.getParentNode(); // element containing the text-node
             Node grandParent = parent.getParentNode(); // parent element
             grandParent.removeChild(parent);
+            recurseXmlCoverage[22] = true;
         }
     }
 
@@ -1598,7 +1656,8 @@ public class ScenarioEngine {
             Variable v = evalKarateExpression(replaceWith);
             replaceWith = v.getAsString();
         } catch (Exception e) {
-            throw new RuntimeException("expression error (replace string values need to be within quotes): " + e.getMessage());
+            throw new RuntimeException(
+                    "expression error (replace string values need to be within quotes): " + e.getMessage());
         }
         if (replaceWith == null) { // ignore if eval result is null
             return text;
@@ -1649,16 +1708,18 @@ public class ScenarioEngine {
         set(name, path, isWithinParentheses(exp), evalKarateExpression(exp), delete, viaTable);
     }
 
-
     // Code coverage implemented
     boolean[] setCoverage = new boolean[22];
-    private void set(String name, String path, boolean isWithinParentheses, Variable value, boolean delete, boolean viaTable) {
+
+    private void set(String name, String path, boolean isWithinParentheses, Variable value, boolean delete,
+            boolean viaTable) {
         setCoverage[0] = true;
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
         if (viaTable && value.isNull() && !isWithinParentheses) {
             setCoverage[1] = true;
-            // by default, skip any expression that evaluates to null unless the user expressed
+            // by default, skip any expression that evaluates to null unless the user
+            // expressed
             // intent to over-ride by enclosing the expression in parentheses
             return;
         }
@@ -1669,7 +1730,8 @@ public class ScenarioEngine {
             name = nameAndPath.left;
             path = nameAndPath.right;
         }
-        Variable target = JS.bindings.hasMember(name) ? new Variable(JS.get(name)) : null; // should work in called features
+        Variable target = JS.bindings.hasMember(name) ? new Variable(JS.get(name)) : null; // should work in called
+                                                                                           // features
         if (isXmlPath(path)) {
             setCoverage[4] = true;
             if (target == null || target.isNull()) {
@@ -1763,9 +1825,10 @@ public class ScenarioEngine {
                 String expression = StringUtils.trimToNull(map.get(key));
                 if (expression == null) { // cucumber cell was left blank
                     continue; // skip
-                    // default behavior is to skip nulls when the expression evaluates 
+                    // default behavior is to skip nulls when the expression evaluates
                     // this is driven by the routine in setValueByPath
-                    // and users can over-ride this by simply enclosing the expression in parentheses
+                    // and users can over-ride this by simply enclosing the expression in
+                    // parentheses
                 }
                 String suffix;
                 try {
@@ -1812,12 +1875,12 @@ public class ScenarioEngine {
 
     // Code coverage implemented
     public boolean[] matchCoverage = new boolean[16];
-    
+
     public Match.Result match(Match.Type matchType, String expression, String path, String rhs) {
         System.out.println("Nu testar vi!!!");
         matchCoverage[0] = true;
         String name = StringUtils.trimToEmpty(expression);
-        if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { 
+        if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) {
             matchCoverage[1] = true;
             path = name;
             name = RESPONSE;
@@ -1846,17 +1909,19 @@ public class ScenarioEngine {
 
         matchCoverage[7] = true;
         Variable actual;
-        // karate started out by "defaulting" to JsonPath on the LHS of a match so we have this kludge
-        // but we now handle JS expressions of almost any shape on the LHS, if in doubt, wrap in parentheses
+        // karate started out by "defaulting" to JsonPath on the LHS of a match so we
+        // have this kludge
+        // but we now handle JS expressions of almost any shape on the LHS, if in doubt,
+        // wrap in parentheses
         // actually it is not too bad - the XPath function check is the only odd one out
         // rules:
         // if not XPath function, wrapped in parentheses, involves function call
-        //      [then] JS eval
+        // [then] JS eval
         // else if XPath, JsonPath, JsonPath wildcard ".." or "*" or "[?"
-        //      [then] eval name, and do a JsonPath or XPath using the parsed path
+        // [then] eval name, and do a JsonPath or XPath using the parsed path
         if (isXmlPathFunction(path)
                 || (!name.startsWith("(") && !path.endsWith(")") && !path.contains(")."))
-                && (isDollarPrefixed(path) || isJsonPath(path) || isXmlPath(path))) {
+                        && (isDollarPrefixed(path) || isJsonPath(path) || isXmlPath(path))) {
             matchCoverage[8] = true;
             actual = evalKarateExpression(name);
             // edge case: java property getter, e.g. "driver.cookies"
@@ -1988,7 +2053,7 @@ public class ScenarioEngine {
         switch (called.type) {
             case JS_FUNCTION:
             case JAVA_FUNCTION:
-                return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
+                return arg == null ? executeFunction(called) : executeFunction(called, new Object[] { arg.getValue() });
             case FEATURE:
                 // call result will be always a map or a list of maps (loop call result)
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
@@ -2018,9 +2083,10 @@ public class ScenarioEngine {
 
     private Variable callOnceResult(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
-            vars.clear(); // clean slate            
+            vars.clear(); // clean slate
             if (result.vars != null) {
-                // shallow clone maps and lists so that subsequent steps don't modify data / references being passed around
+                // shallow clone maps and lists so that subsequent steps don't modify data /
+                // references being passed around
                 result.vars.forEach((k, v) -> vars.put(k, v.copy(false)));
             } else if (result.value != null) {
                 if (result.value.isMap()) {
@@ -2067,7 +2133,8 @@ public class ScenarioEngine {
             // this thread is the 'winner'
             logger.info(">> lock acquired, begin callonce: {}", cacheKey);
             Variable callResult = call(called, arg, sharedScope);
-            // we clone result (and config) here, to snapshot state at the point the callonce was invoked
+            // we clone result (and config) here, to snapshot state at the point the
+            // callonce was invoked
             Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? shallowCloneVariables() : null;
             result = new ScenarioCall.Result(callResult.copy(false), new Config(config), clonedVars);
             CACHE.put(cacheKey, result);
@@ -2105,7 +2172,7 @@ public class ScenarioEngine {
                 if (isList) {
                     loopArg = iterator.hasNext() ? new Variable(iterator.next()) : Variable.NULL;
                 } else { // function
-                    loopArg = executeFunction(arg, new Object[]{loopIndex});
+                    loopArg = executeFunction(arg, new Object[] { loopIndex });
                 }
                 if (!loopArg.isMap()) {
                     if (!isList) {
@@ -2184,7 +2251,8 @@ public class ScenarioEngine {
         }
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             return new Variable(node);
-        } else { // make sure we create a fresh doc else future xpath would run against original root
+        } else { // make sure we create a fresh doc else future xpath would run against original
+                 // root
             return new Variable(XmlUtils.toNewDocument(node));
         }
     }
@@ -2205,6 +2273,7 @@ public class ScenarioEngine {
 
     // Code coverage implemented
     boolean[] evalKarateExpressionCoverage = new boolean[27];
+
     public Variable evalKarateExpression(String text, boolean forMatch) {
         evalKarateExpressionCoverage[0] = true;
         text = StringUtils.trimToNull(text);
@@ -2216,7 +2285,7 @@ public class ScenarioEngine {
 
         // don't re-evaluate if this is clearly a direct reference to a variable
         // this avoids un-necessary conversion of xml into a map in some cases
-        // e.g. 'Given request foo' - where foo is a Variable of type XML      
+        // e.g. 'Given request foo' - where foo is a Variable of type XML
         if (JS.bindings.hasMember(text)) {
             evalKarateExpressionCoverage[3] = true;
             return new Variable(JS.get(text));

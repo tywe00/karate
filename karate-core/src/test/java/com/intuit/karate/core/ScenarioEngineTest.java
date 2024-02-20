@@ -29,18 +29,19 @@ public class ScenarioEngineTest {
     static final Logger logger = LoggerFactory.getLogger(ScenarioEngineTest.class);
 
     ScenarioEngine engine;
+    boolean[] httpInvokeOnceCoverageResult;
+    boolean[] recurseXmlCoverageResult;
     boolean[] matchCoverageResult;
     boolean[] evalKarateExpressionCoverage;
     boolean[] setCoverage;
 
-
-
     @BeforeAll
     void initCoverage() {
+        httpInvokeOnceCoverageResult = new boolean[17];
+        recurseXmlCoverageResult = new boolean[23];
         matchCoverageResult = new boolean[16];
         evalKarateExpressionCoverage = new boolean[27];
         setCoverage = new boolean[22];
-
     }
 
     @BeforeEach
@@ -51,20 +52,33 @@ public class ScenarioEngineTest {
 
     @AfterEach
     void coverageResult() {
-        for(int i = 0; i < matchCoverageResult.length; i++) {
-            if(engine.matchCoverage[i]) {
+
+        for (int i = 0; i < httpInvokeOnceCoverageResult.length; i++) {
+            if (engine.httpInvokeOnceCoverage[i]) {
+                httpInvokeOnceCoverageResult[i] = engine.httpInvokeOnceCoverage[i];
+            }
+        }
+
+        for (int i = 0; i < recurseXmlCoverageResult.length; i++) {
+            if (engine.recurseXmlCoverage[i]) {
+                recurseXmlCoverageResult[i] = engine.recurseXmlCoverage[i];
+            }
+        }
+
+        for (int i = 0; i < matchCoverageResult.length; i++) {
+            if (engine.matchCoverage[i]) {
                 matchCoverageResult[i] = engine.matchCoverage[i];
             }
         }
 
-        for(int i = 0; i < evalKarateExpressionCoverage.length; i++) {
-            if(engine.evalKarateExpressionCoverage[i]) {
+        for (int i = 0; i < evalKarateExpressionCoverage.length; i++) {
+            if (engine.evalKarateExpressionCoverage[i]) {
                 evalKarateExpressionCoverage[i] = engine.evalKarateExpressionCoverage[i];
             }
         }
 
-        for(int i = 0; i < setCoverage.length; i++) {
-            if(engine.setCoverage[i]) {
+        for (int i = 0; i < setCoverage.length; i++) {
+            if (engine.setCoverage[i]) {
                 setCoverage[i] = engine.setCoverage[i];
             }
         }
@@ -75,34 +89,54 @@ public class ScenarioEngineTest {
     void coverageResultFinal() {
         double coverageResult = 0;
 
-        System.out.println("Resultat för match coverage");
-        for(int i = 0; i < matchCoverageResult.length; i++) {
-            System.out.println("Cov " + i + " är " + matchCoverageResult[i]);
-            if(matchCoverageResult[i]) {
+        System.out.println("Resultat för httpInvokeOnceCoverage coverage");
+        for (int i = 0; i < httpInvokeOnceCoverageResult.length; i++) {
+            System.out.println("Cov " + i + " är " + httpInvokeOnceCoverageResult[i]);
+            if (httpInvokeOnceCoverageResult[i]) {
                 coverageResult++;
             }
         }
-        System.out.println("Percent of MATCH covered: " + (coverageResult/matchCoverageResult.length) *100 + "%");
+        System.out.println("Percent of MATCH covered: " + (coverageResult / httpInvokeOnceCoverageResult.length) * 100 + "%");
+
+        coverageResult = 0;
+        System.out.println("Resultat för recurseXml coverage");
+        for (int i = 0; i < recurseXmlCoverageResult.length; i++) {
+            System.out.println("Cov " + i + " är " + recurseXmlCoverageResult[i]);
+            if (recurseXmlCoverageResult[i]) {
+                coverageResult++;
+            }
+        }
+        System.out.println("Percent of MATCH covered: " + (coverageResult / recurseXmlCoverageResult.length) * 100 + "%");
+
+        coverageResult = 0;
+        System.out.println("Resultat för match coverage");
+        for (int i = 0; i < matchCoverageResult.length; i++) {
+            System.out.println("Cov " + i + " är " + matchCoverageResult[i]);
+            if (matchCoverageResult[i]) {
+                coverageResult++;
+            }
+        }
+        System.out.println("Percent of MATCH covered: " + (coverageResult / matchCoverageResult.length) * 100 + "%");
 
         coverageResult = 0;
         System.out.println("Resultat för evalKarateExpressionCoverage");
-        for(int i = 0; i < evalKarateExpressionCoverage.length; i++) {
+        for (int i = 0; i < evalKarateExpressionCoverage.length; i++) {
             System.out.println("Cov " + i + " är " + evalKarateExpressionCoverage[i]);
-            if(evalKarateExpressionCoverage[i]) {
+            if (evalKarateExpressionCoverage[i]) {
                 coverageResult++;
             }
         }
-        System.out.println("Percent of EVALKARATEEXPRESSION covered: " + (coverageResult/evalKarateExpressionCoverage.length) *100 + "%");
-        
+        System.out.println("Percent of EVALKARATEEXPRESSION covered: "+ (coverageResult / evalKarateExpressionCoverage.length) * 100 + "%");
+
         coverageResult = 0;
         System.out.println("Resultat för set");
-        for(int i = 0; i < setCoverage.length; i++) {
+        for (int i = 0; i < setCoverage.length; i++) {
             System.out.println("Cov " + i + " är " + setCoverage[i]);
-            if(setCoverage[i]) {
+            if (setCoverage[i]) {
                 coverageResult++;
             }
         }
-        System.out.println("Percent of EVALKARATEEXPRESSION covered: " + (coverageResult/setCoverage.length) *100 + "%");
+        System.out.println("Percent of EVALKARATEEXPRESSION covered: " + (coverageResult / setCoverage.length) * 100 + "%");
 
     }
 
@@ -168,7 +202,8 @@ public class ScenarioEngineTest {
         assertEquals(StringUtils.pair("foo", "/"), ScenarioEngine.parseVariableAndPath("foo/"));
         assertEquals(StringUtils.pair("foo", "/"), ScenarioEngine.parseVariableAndPath("foo /"));
         assertEquals(StringUtils.pair("foo", "/bar"), ScenarioEngine.parseVariableAndPath("foo /bar"));
-        assertEquals(StringUtils.pair("foo", "/bar/baz[1]/ban"), ScenarioEngine.parseVariableAndPath("foo/bar/baz[1]/ban"));
+        assertEquals(StringUtils.pair("foo", "/bar/baz[1]/ban"),
+                ScenarioEngine.parseVariableAndPath("foo/bar/baz[1]/ban"));
     }
 
     @Test
@@ -232,7 +267,7 @@ public class ScenarioEngineTest {
         assign("b", "2");
         assign("myXml", "<root><foo>#(a + b)</foo></root>");
         Variable value = engine.evalXmlPathOnVariableByName("myXml", "/root/foo");
-        matchEval(value.getValue(), "3"); // TODO BREAKING '3' before graal  
+        matchEval(value.getValue(), "3"); // TODO BREAKING '3' before graal
         assign("hello", "<hello>world</hello>");
         assign("myXml", "<foo><bar>#(hello)</bar></foo>");
         matchEquals("myXml", "<foo><bar><hello>world</hello></bar></foo>");
@@ -422,7 +457,8 @@ public class ScenarioEngineTest {
         // pojo to xml
         engine.assign(AssignType.XML, "myXml", "myPojo", false);
         matchEquals("myXml", "<root><foo></foo><bar>0</bar></root>");
-        assign("myXml2", "<root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>");
+        assign("myXml2",
+                "<root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>");
         matchNotEquals("myXml2/root/text", "'#notnull'");
         matchEquals("myXml2/root/text", "'#notpresent'");
         matchEquals("myXml2/root/text", "'#ignore'");
