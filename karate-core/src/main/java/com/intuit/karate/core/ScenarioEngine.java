@@ -1649,67 +1649,92 @@ public class ScenarioEngine {
         set(name, path, isWithinParentheses(exp), evalKarateExpression(exp), delete, viaTable);
     }
 
+
+    // Code coverage implemented
+    boolean[] setCoverage = new boolean[22];
     private void set(String name, String path, boolean isWithinParentheses, Variable value, boolean delete, boolean viaTable) {
+        setCoverage[0] = true;
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
         if (viaTable && value.isNull() && !isWithinParentheses) {
+            setCoverage[1] = true;
             // by default, skip any expression that evaluates to null unless the user expressed
             // intent to over-ride by enclosing the expression in parentheses
             return;
         }
+        setCoverage[2] = true;
         if (path == null) {
+            setCoverage[3] = true;
             StringUtils.Pair nameAndPath = parseVariableAndPath(name);
             name = nameAndPath.left;
             path = nameAndPath.right;
         }
         Variable target = JS.bindings.hasMember(name) ? new Variable(JS.get(name)) : null; // should work in called features
         if (isXmlPath(path)) {
+            setCoverage[4] = true;
             if (target == null || target.isNull()) {
+                setCoverage[5] = true;
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
+                    setCoverage[6] = true;
                     Document empty = XmlUtils.newDocument();
                     target = new Variable(empty);
                     setVariable(name, target);
                 } else {
+                    setCoverage[7] = true;
                     throw new RuntimeException("variable is null or not set '" + name + "'");
                 }
             }
             Document doc = target.getValue();
             if (delete) {
+                setCoverage[8] = true;
                 XmlUtils.removeByPath(doc, path);
             } else if (value.isXml()) {
+                setCoverage[9] = true;
                 Node node = value.getValue();
                 XmlUtils.setByPath(doc, path, node);
             } else if (value.isMap()) { // cast to xml
+                setCoverage[10] = true;
                 Node node = XmlUtils.fromMap(value.getValue());
                 XmlUtils.setByPath(doc, path, node);
             } else {
+                setCoverage[11] = true;
                 XmlUtils.setByPath(doc, path, value.getAsString());
             }
             setVariable(name, new Variable(doc));
         } else { // assume json-path
+            setCoverage[12] = true;
             if (target == null || target.isNull()) {
+                setCoverage[13] = true;
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
+                    setCoverage[14] = true;
                     Json json;
                     if (path.startsWith("$[") && !path.startsWith("$['")) {
+                        setCoverage[15] = true;
                         json = Json.of("[]");
                     } else {
+                        setCoverage[16] = true;
                         json = Json.of("{}");
                     }
                     target = new Variable(json.value());
                     setVariable(name, target);
                 } else {
+                    setCoverage[17] = true;
                     throw new RuntimeException("variable is null or not set '" + name + "'");
                 }
             }
             Json json;
             if (target.isMapOrList()) {
+                setCoverage[18] = true;
                 json = Json.of(target.<Object>getValue());
             } else {
+                setCoverage[19] = true;
                 throw new RuntimeException("cannot set json path on type: " + target);
             }
             if (delete) {
+                setCoverage[20] = true;
                 json.remove(path);
             } else {
+                setCoverage[21] = true;
                 json.set(path, value.<Object>getValue());
             }
         }
@@ -1785,28 +1810,41 @@ public class ScenarioEngine {
         return StringUtils.pair(name, path);
     }
 
+    // Code coverage implemented
+    public boolean[] matchCoverage = new boolean[16];
+    
     public Match.Result match(Match.Type matchType, String expression, String path, String rhs) {
+        System.out.println("Nu testar vi!!!");
+        matchCoverage[0] = true;
         String name = StringUtils.trimToEmpty(expression);
-        if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // 
+        if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { 
+            matchCoverage[1] = true;
             path = name;
             name = RESPONSE;
         }
         if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
+            matchCoverage[2] = true;
             name = name.substring(1);
         }
         path = StringUtils.trimToNull(path);
         if (path == null) {
+            matchCoverage[3] = true;
             if (name.startsWith("(")) { // edge case, eval entire LHS
+                matchCoverage[4] = true;
                 path = "$";
             } else {
+                matchCoverage[5] = true;
                 StringUtils.Pair pair = parseVariableAndPath(name);
                 name = pair.left;
                 path = pair.right;
             }
         }
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
+            matchCoverage[6] = true;
             return matchHeader(matchType, path, rhs);
         }
+
+        matchCoverage[7] = true;
         Variable actual;
         // karate started out by "defaulting" to JsonPath on the LHS of a match so we have this kludge
         // but we now handle JS expressions of almost any shape on the LHS, if in doubt, wrap in parentheses
@@ -1819,25 +1857,33 @@ public class ScenarioEngine {
         if (isXmlPathFunction(path)
                 || (!name.startsWith("(") && !path.endsWith(")") && !path.contains(")."))
                 && (isDollarPrefixed(path) || isJsonPath(path) || isXmlPath(path))) {
+            matchCoverage[8] = true;
             actual = evalKarateExpression(name);
             // edge case: java property getter, e.g. "driver.cookies"
             if (!actual.isMap() && !actual.isList() && !isXmlPath(path) && !isXmlPathFunction(path)) {
+                matchCoverage[9] = true;
                 actual = evalKarateExpression(expression); // fall back to JS eval of entire LHS
                 path = "$";
             }
         } else {
+            matchCoverage[10] = true;
             actual = evalKarateExpression(expression); // JS eval of entire LHS
             path = "$";
         }
         if ("$".equals(path) || "/".equals(path)) {
+            matchCoverage[11] = true;
             // we have eval-ed the entire LHS, so proceed to match RHS to "$"
         } else {
+            matchCoverage[12] = true;
             if (isDollarPrefixed(path)) { // json-path
+                matchCoverage[13] = true;
                 actual = evalJsonPath(actual, path);
             } else { // xpath
+                matchCoverage[14] = true;
                 actual = evalXmlPath(actual, path);
             }
         }
+        matchCoverage[15] = true;
         Variable expected = evalKarateExpression(rhs, true);
         return match(matchType, actual.getValue(), expected.getValue());
     }
@@ -2157,84 +2203,116 @@ public class ScenarioEngine {
         return evalKarateExpression(text, false);
     }
 
+    // Code coverage implemented
+    boolean[] evalKarateExpressionCoverage = new boolean[27];
     public Variable evalKarateExpression(String text, boolean forMatch) {
+        evalKarateExpressionCoverage[0] = true;
         text = StringUtils.trimToNull(text);
         if (text == null) {
+            evalKarateExpressionCoverage[1] = true;
             return Variable.NULL;
         }
+        evalKarateExpressionCoverage[2] = true;
+
         // don't re-evaluate if this is clearly a direct reference to a variable
         // this avoids un-necessary conversion of xml into a map in some cases
         // e.g. 'Given request foo' - where foo is a Variable of type XML      
         if (JS.bindings.hasMember(text)) {
+            evalKarateExpressionCoverage[3] = true;
             return new Variable(JS.get(text));
         }
+        evalKarateExpressionCoverage[4] = true;
         boolean callOnce = isCallOnceSyntax(text);
         if (callOnce || isCallSyntax(text)) { // special case in form "callBegin foo arg"
+            evalKarateExpressionCoverage[5] = true;
+
             if (callOnce) {
+                evalKarateExpressionCoverage[6] = true;
                 text = text.substring(9);
             } else {
+                evalKarateExpressionCoverage[7] = true;
                 text = text.substring(5);
             }
             return call(callOnce, text, false);
         } else if (isDollarPrefixedJsonPath(text)) {
+            evalKarateExpressionCoverage[8] = true;
             return evalJsonPathOnVariableByName(RESPONSE, text);
         } else if (isGetSyntax(text) || isDollarPrefixed(text)) { // special case in form
+            evalKarateExpressionCoverage[9] = true;
             // get json[*].path
             // $json[*].path
             // get /xml/path
             // get xpath-function(expression)
             int index = -1;
             if (text.startsWith("$")) {
+                evalKarateExpressionCoverage[10] = true;
+
                 text = text.substring(1);
             } else if (text.startsWith("get[")) {
+                evalKarateExpressionCoverage[11] = true;
                 int pos = text.indexOf(']');
                 index = Integer.valueOf(text.substring(4, pos));
                 text = text.substring(pos + 2);
             } else {
+                evalKarateExpressionCoverage[12] = true;
                 text = text.substring(4);
             }
             String left;
             String right;
             if (isDollarPrefixedJsonPath(text)) { // edge case get[0] $..foo
+                evalKarateExpressionCoverage[13] = true;
                 left = RESPONSE;
                 right = text;
             } else if (isVariableAndSpaceAndPath(text)) {
+                evalKarateExpressionCoverage[14] = true;
                 int pos = text.indexOf(' ');
                 right = text.substring(pos + 1);
                 left = text.substring(0, pos);
             } else {
+                evalKarateExpressionCoverage[15] = true;
                 StringUtils.Pair pair = parseVariableAndPath(text);
                 left = pair.left;
                 right = pair.right;
             }
             Variable sv;
             if (isXmlPath(right) || isXmlPathFunction(right)) {
+                evalKarateExpressionCoverage[16] = true;
                 sv = evalXmlPathOnVariableByName(left, right);
             } else {
+                evalKarateExpressionCoverage[17] = true;
                 sv = evalJsonPathOnVariableByName(left, right);
             }
             if (index != -1 && sv.isList()) {
+                evalKarateExpressionCoverage[18] = true;
                 List list = sv.getValue();
                 if (!list.isEmpty()) {
+                    evalKarateExpressionCoverage[19] = true;
                     return new Variable(list.get(index));
                 }
             }
+            evalKarateExpressionCoverage[20] = true;
             return sv;
         } else if (isJson(text)) {
+            evalKarateExpressionCoverage[21] = true;
             Json json = Json.of(text);
             return evalEmbeddedExpressions(new Variable(json.value()), forMatch);
         } else if (isXml(text)) {
+            evalKarateExpressionCoverage[22] = true;
             Document doc = XmlUtils.toXmlDoc(text, config.isXmlNamespaceAware());
             return evalEmbeddedExpressions(new Variable(doc), forMatch);
         } else if (isXmlPath(text)) {
+            evalKarateExpressionCoverage[23] = true;
             return evalXmlPathOnVariableByName(RESPONSE, text);
         } else {
+            evalKarateExpressionCoverage[24] = true;
             // old school function declarations e.g. function() { } need wrapping in graal
             if (isJavaScriptFunction(text)) {
+                evalKarateExpressionCoverage[25] = true;
                 text = "(" + text + ")";
             }
             // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, foo + '', 5, true
             // including arrow functions e.g. x => x + 1
+            evalKarateExpressionCoverage[26] = true;
             return evalJs(text);
         }
     }

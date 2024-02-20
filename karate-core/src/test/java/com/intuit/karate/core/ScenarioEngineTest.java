@@ -7,24 +7,103 @@ import com.intuit.karate.TestUtils;
 import com.intuit.karate.graal.JsValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.ArrayList;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+
 /**
  * @author pthomas3
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ScenarioEngineTest {
 
     static final Logger logger = LoggerFactory.getLogger(ScenarioEngineTest.class);
 
     ScenarioEngine engine;
+    boolean[] matchCoverageResult;
+    boolean[] evalKarateExpressionCoverage;
+    boolean[] setCoverage;
+
+
+
+    @BeforeAll
+    void initCoverage() {
+        matchCoverageResult = new boolean[16];
+        evalKarateExpressionCoverage = new boolean[27];
+        setCoverage = new boolean[22];
+
+    }
 
     @BeforeEach
     void beforeEach() {
         engine = TestUtils.engine();
         engine.init();
+    }
+
+    @AfterEach
+    void coverageResult() {
+        for(int i = 0; i < matchCoverageResult.length; i++) {
+            if(engine.matchCoverage[i]) {
+                matchCoverageResult[i] = engine.matchCoverage[i];
+            }
+        }
+
+        for(int i = 0; i < evalKarateExpressionCoverage.length; i++) {
+            if(engine.evalKarateExpressionCoverage[i]) {
+                evalKarateExpressionCoverage[i] = engine.evalKarateExpressionCoverage[i];
+            }
+        }
+
+        for(int i = 0; i < setCoverage.length; i++) {
+            if(engine.setCoverage[i]) {
+                setCoverage[i] = engine.setCoverage[i];
+            }
+        }
+
+    }
+
+    @AfterAll
+    void coverageResultFinal() {
+        double coverageResult = 0;
+
+        System.out.println("Resultat för match coverage");
+        for(int i = 0; i < matchCoverageResult.length; i++) {
+            System.out.println("Cov " + i + " är " + matchCoverageResult[i]);
+            if(matchCoverageResult[i]) {
+                coverageResult++;
+            }
+        }
+        System.out.println("Percent of MATCH covered: " + (coverageResult/matchCoverageResult.length) *100 + "%");
+
+        coverageResult = 0;
+        System.out.println("Resultat för evalKarateExpressionCoverage");
+        for(int i = 0; i < evalKarateExpressionCoverage.length; i++) {
+            System.out.println("Cov " + i + " är " + evalKarateExpressionCoverage[i]);
+            if(evalKarateExpressionCoverage[i]) {
+                coverageResult++;
+            }
+        }
+        System.out.println("Percent of EVALKARATEEXPRESSION covered: " + (coverageResult/evalKarateExpressionCoverage.length) *100 + "%");
+        
+        coverageResult = 0;
+        System.out.println("Resultat för set");
+        for(int i = 0; i < setCoverage.length; i++) {
+            System.out.println("Cov " + i + " är " + setCoverage[i]);
+            if(setCoverage[i]) {
+                coverageResult++;
+            }
+        }
+        System.out.println("Percent of EVALKARATEEXPRESSION covered: " + (coverageResult/setCoverage.length) *100 + "%");
+
     }
 
     private void matchEval(Object before, Object after) {
