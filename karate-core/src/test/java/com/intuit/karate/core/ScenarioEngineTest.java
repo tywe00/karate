@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -415,6 +417,27 @@ public class ScenarioEngineTest {
         Json json = Json.of("[{token: 'foo', value: \"'bar'\" }]");
         engine.replaceTable("str", json.asList());
         matchEquals("str", "'ha bar ha'");
+    }
+
+    @Test
+    void testGetImageBytesWithString() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("imageParam", "karate-logo.png");
+        String paramName = "imageParam";
+
+        byte[] result = engine.pubGetImageBytes(params, paramName);
+
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetImageBytesWithNull() {
+        Map<String, Object> params = new HashMap<>();
+        String paramName = "imageParam";
+
+        byte[] result = engine.pubGetImageBytes(params, paramName);
+
+        assertNull(result);
     }
 
 }

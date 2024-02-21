@@ -1183,6 +1183,10 @@ public class ScenarioEngine {
         return result;
     }
 
+    public byte[] pubGetImageBytes(Map<String, Object> params, String paramName){
+        return getImageBytes(params, paramName);
+    }
+
     private byte[] getImageBytes(Map<String, Object> params, String paramName) {
         Object img = params.get(paramName);
         if (img == null) {
