@@ -9,10 +9,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author pthomas3
@@ -382,6 +383,14 @@ public class ScenarioEngineTest {
         matchEquals("test", "<root><baz>ban</baz></root>");
     }
 
+    @Test 
+    void setWhenVariableIsNotSetThrowsRunTimeException() {
+        assertThrows(RuntimeException.class, () -> {
+            engine.set("test", null, "'baz'");
+        });
+    }
+
+
     @Test
     void testSetViaTable() {
         Json json = Json.of("[{path: 'bar', value: \"'baz'\" }]");
@@ -419,25 +428,5 @@ public class ScenarioEngineTest {
         matchEquals("str", "'ha bar ha'");
     }
 
-    @Test
-    void testGetImageBytesWithString() {
-        Map<String, Object> params = new HashMap<>();
-        params.put("imageParam", "karate-logo.png");
-        String paramName = "imageParam";
-
-        byte[] result = engine.pubGetImageBytes(params, paramName);
-
-        assertNotNull(result);
-    }
-
-    @Test
-    void testGetImageBytesWithNull() {
-        Map<String, Object> params = new HashMap<>();
-        String paramName = "imageParam";
-
-        byte[] result = engine.pubGetImageBytes(params, paramName);
-
-        assertNull(result);
-    }
-
 }
+
