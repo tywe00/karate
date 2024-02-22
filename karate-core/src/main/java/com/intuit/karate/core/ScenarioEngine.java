@@ -1205,6 +1205,11 @@ public class ScenarioEngine {
                 "invalid image comparison options: expected " + paramName + " to be one of string|byte[]");
     }
 
+     //public function to access test for getImageOptions
+    public Map<String, Object> pubGetImageOptions(Object obj, String objName) {
+        return getImageOptions(obj, objName);
+    }
+
     private Map<String, Object> getImageOptions(Object obj, String objName) {
         if (obj == null) {
             return new HashMap<>();
