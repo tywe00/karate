@@ -463,11 +463,57 @@ public class ScenarioEngineTest {
         assertNull(result);
     }
 
+    //Alva
     @Test 
     void setWhenVariableIsNotSetThrowsRunTimeException() {
         assertThrows(RuntimeException.class, () -> {
             engine.set("test", null, "'baz'");
         });
+    }
+
+    //Milad
+    @Test
+    void testReplacePlaceholderTextNullText() {
+
+        String text = null;
+        String token = "token";
+        String replaceWith = "replaceWith";
+        String result = engine.replacePlaceholderText(text, token, replaceWith);
+        assertNull(result);
+
+    }
+
+    @Test
+    void testReplacePlaceholderTextNullReplaceWith() {
+
+        String text = "text";
+        String token = "token";
+        String replaceWith = null;
+        String result = engine.replacePlaceholderText(text, token, replaceWith);
+        assertEquals("text", result);
+
+    }
+
+    @Test
+    void testReplacePlaceholderTextNullToken() {
+
+        String text = "text";
+        String token = null;
+        String replaceWith = "\"replaceWith\"";
+        String result = engine.replacePlaceholderText(text, token, replaceWith);
+        assertEquals("text", result);
+
+    }
+
+    @Test
+    void testReplacePlaceholderTextValidVariables() {
+
+        String text = "text <token>";
+        String token = "token";
+        String replaceWith = "\"replaceWith\"";
+        String result = engine.replacePlaceholderText(text, token, replaceWith);
+        assertEquals("text replaceWith", result);
+
     }
 }
 
