@@ -383,14 +383,6 @@ public class ScenarioEngineTest {
         matchEquals("test", "<root><baz>ban</baz></root>");
     }
 
-    @Test 
-    void setWhenVariableIsNotSetThrowsRunTimeException() {
-        assertThrows(RuntimeException.class, () -> {
-            engine.set("test", null, "'baz'");
-        });
-    }
-
-
     @Test
     void testSetViaTable() {
         Json json = Json.of("[{path: 'bar', value: \"'baz'\" }]");
@@ -427,6 +419,55 @@ public class ScenarioEngineTest {
         engine.replaceTable("str", json.asList());
         matchEquals("str", "'ha bar ha'");
     }
+//Tests written by group 13
+    //Annie
+    @Test
+    void testpubGetImageOptionsIfObjectEqualsNull(){
+        //creates a new object and assigns it to null
+        Object obj = null;
+        //create new empty hash map
+        Map<String, Object> map = new HashMap<>();
+        //assert that the returned value is equal to the expected value
+        assertEquals(engine.pubGetImageOptions(obj, "name"), map);
+    }
 
+    @Test   
+    void testpubGetImageOptionsIfObjectIsInstanceOfMap(){
+        //create new empty hash map
+        Map<String, Object> map = new HashMap<>();
+        //add key value pair to the map
+        map.put("name", "value");
+        //assert that the returned value is equal to the expected value
+        assertEquals(engine.pubGetImageOptions(map, "name"), map);
+    }
+
+    //Alexander
+    @Test
+    void testGetImageBytesWithString() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("imageParam", "karate-logo.png");
+        String paramName = "imageParam";
+
+        byte[] result = engine.pubGetImageBytes(params, paramName);
+
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetImageBytesWithNull() {
+        Map<String, Object> params = new HashMap<>();
+        String paramName = "imageParam";
+
+        byte[] result = engine.pubGetImageBytes(params, paramName);
+
+        assertNull(result);
+    }
+
+    @Test 
+    void setWhenVariableIsNotSetThrowsRunTimeException() {
+        assertThrows(RuntimeException.class, () -> {
+            engine.set("test", null, "'baz'");
+        });
+    }
 }
 
