@@ -36,4 +36,64 @@ class DriverOptionsTest {
         options.retry(() -> 1, x -> x < 5, "not 5", false);
     }
 
+    // Function had 27% coverage before all tests
+    // Coverage increased to 33%
+    @Test
+    void testSelectorWithLocatorThatStartWithLeftParentheses() {
+
+        String locator = "(test string)";
+        String contextNode = "test string";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertEquals("(test string)", result);
+    }
+
+    // Coverage increased to 38%
+    @Test
+    void testSelectorWithLoctorThatsStartsWithOtherParentheses() {
+
+        String locator = "{}";
+        String contextNode = "test string";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertFalse(result.contains(locator));
+    }
+
+    // coverage increased to 50%
+    @Test
+    void testSelectorWithForwardSlash() {
+
+        String locator = "/tester";
+        String contextNode = "document";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertTrue(result.startsWith("document.evaluate"));
+    }
+
+    // coverage increased to 61%
+    @Test
+    void testSelectorWithContextNodeEqualToDocument() {
+
+        String locator = "/(tester";
+        String contextNode = "document";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertTrue(result.startsWith("document.evaluate"));
+    }
+
+    // coverage increased to 66%
+    @Test
+    void testSelectorWithContextNodeNotEqualToDocument() {
+
+        String locator = "/(tester";
+        String contextNode = "notdocument";
+
+        String result = DriverOptions.selector(locator, contextNode);
+
+        assertTrue(result.startsWith("document.evaluate"));
+    }
 }

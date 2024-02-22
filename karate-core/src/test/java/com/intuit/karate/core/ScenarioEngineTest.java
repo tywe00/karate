@@ -1,19 +1,41 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Json;
+import com.intuit.karate.KarateException;
 import com.intuit.karate.Match;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.TestUtils;
 import com.intuit.karate.graal.JsValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.template.KarateTemplateEngine;
+
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.io.PrintStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.io.ByteArrayOutputStream;
+
+import org.apache.http.client.methods.RequestBuilder;
 
 /**
  * @author pthomas3
@@ -24,6 +46,19 @@ public class ScenarioEngineTest {
 
     ScenarioEngine engine;
 
+    @Mock
+    HttpRequestBuilder requestBuilderMock;
+
+    @Mock
+    HttpClient clientMock;
+
+    @Mock
+    HttpRequest httpRequestMock;
+
+    /*
+     * @InjectMocks
+     * private ScenarioEngine scenarioEngine;
+     */
     @BeforeEach
     void beforeEach() {
         engine = TestUtils.engine();
@@ -92,7 +127,8 @@ public class ScenarioEngineTest {
         assertEquals(StringUtils.pair("foo", "/"), ScenarioEngine.parseVariableAndPath("foo/"));
         assertEquals(StringUtils.pair("foo", "/"), ScenarioEngine.parseVariableAndPath("foo /"));
         assertEquals(StringUtils.pair("foo", "/bar"), ScenarioEngine.parseVariableAndPath("foo /bar"));
-        assertEquals(StringUtils.pair("foo", "/bar/baz[1]/ban"), ScenarioEngine.parseVariableAndPath("foo/bar/baz[1]/ban"));
+        assertEquals(StringUtils.pair("foo", "/bar/baz[1]/ban"),
+                ScenarioEngine.parseVariableAndPath("foo/bar/baz[1]/ban"));
     }
 
     @Test
@@ -156,7 +192,7 @@ public class ScenarioEngineTest {
         assign("b", "2");
         assign("myXml", "<root><foo>#(a + b)</foo></root>");
         Variable value = engine.evalXmlPathOnVariableByName("myXml", "/root/foo");
-        matchEval(value.getValue(), "3"); // TODO BREAKING '3' before graal  
+        matchEval(value.getValue(), "3"); // TODO BREAKING '3' before graal
         assign("hello", "<hello>world</hello>");
         assign("myXml", "<foo><bar>#(hello)</bar></foo>");
         matchEquals("myXml", "<foo><bar><hello>world</hello></bar></foo>");
@@ -346,7 +382,8 @@ public class ScenarioEngineTest {
         // pojo to xml
         engine.assign(AssignType.XML, "myXml", "myPojo", false);
         matchEquals("myXml", "<root><foo></foo><bar>0</bar></root>");
-        assign("myXml2", "<root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>");
+        assign("myXml2",
+                "<root><foo>bar</foo><hello><text>hello \"world\"</text></hello><hello><text>hello \"moon\"</text></hello></root>");
         matchNotEquals("myXml2/root/text", "'#notnull'");
         matchEquals("myXml2/root/text", "'#notpresent'");
         matchEquals("myXml2/root/text", "'#ignore'");
@@ -419,8 +456,14 @@ public class ScenarioEngineTest {
         engine.replaceTable("str", json.asList());
         matchEquals("str", "'ha bar ha'");
     }
-//Tests written by group 13
-    //Annie
+    
+    /**
+     * The following tests are written by group 13 in DD2480 KTH
+     */
+
+    /**
+     * @author Annie
+     */
     @Test
     void testpubGetImageOptionsIfObjectEqualsNull(){
         //creates a new object and assigns it to null
@@ -430,6 +473,10 @@ public class ScenarioEngineTest {
         //assert that the returned value is equal to the expected value
         assertEquals(engine.pubGetImageOptions(obj, "name"), map);
     }
+
+    /**
+     * @author Annie
+     */
 
     @Test   
     void testpubGetImageOptionsIfObjectIsInstanceOfMap(){
@@ -441,7 +488,9 @@ public class ScenarioEngineTest {
         assertEquals(engine.pubGetImageOptions(map, "name"), map);
     }
 
-    //Alexander
+    /**
+     * @author Alexander
+     */
     @Test
     void testGetImageBytesWithString() {
         Map<String, Object> params = new HashMap<>();
@@ -453,6 +502,9 @@ public class ScenarioEngineTest {
         assertNotNull(result);
     }
 
+    /**
+     * @author Alexander
+     */
     @Test
     void testGetImageBytesWithNull() {
         Map<String, Object> params = new HashMap<>();
@@ -463,7 +515,9 @@ public class ScenarioEngineTest {
         assertNull(result);
     }
 
-    //Alva
+    /**
+     * @author Alva
+     */
     @Test 
     void setWhenVariableIsNotSetThrowsRunTimeException() {
         assertThrows(RuntimeException.class, () -> {
@@ -471,7 +525,9 @@ public class ScenarioEngineTest {
         });
     }
 
-    //Milad
+    /**
+     * @author Milad
+     */
     @Test
     void testReplacePlaceholderTextNullText() {
 
@@ -483,6 +539,9 @@ public class ScenarioEngineTest {
 
     }
 
+     /**
+     * @author Milad
+     */
     @Test
     void testReplacePlaceholderTextNullReplaceWith() {
 
@@ -494,6 +553,9 @@ public class ScenarioEngineTest {
 
     }
 
+     /**
+     * @author Milad
+     */
     @Test
     void testReplacePlaceholderTextNullToken() {
 
@@ -505,6 +567,9 @@ public class ScenarioEngineTest {
 
     }
 
+     /**
+     * @author Milad
+     */
     @Test
     void testReplacePlaceholderTextValidVariables() {
 
@@ -515,5 +580,35 @@ public class ScenarioEngineTest {
         assertEquals("text replaceWith", result);
 
     }
-}
 
+     /**
+     * @author Tomas
+     */
+    @Test
+    void testHttpInvokeOnce() {
+        MockitoAnnotations.initMocks(this);
+
+        engine.requestBuilder = requestBuilderMock;
+        engine.requestBuilder.client = clientMock;
+        when(clientMock.invoke(any())).thenThrow(new RuntimeException());
+
+        // Assert that an exception is thrown when httpInvoke is called
+        assertThrows(RuntimeException.class, () -> {
+            engine.httpInvokeOnce();
+        });
+    }
+
+     /**
+     * @author Tomas
+     */
+    @Test
+    void testRenderHtmlWithoutPathandHtml() {
+
+        Map<String, Object> options = new HashMap<>();
+        options.put("string1", new Object());
+        options.put("string2", new Object());
+
+        assertEquals(engine.renderHtml(options), null);
+    }
+
+}
