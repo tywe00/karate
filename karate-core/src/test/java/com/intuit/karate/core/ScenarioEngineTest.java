@@ -418,7 +418,30 @@ public class ScenarioEngineTest {
         engine.replaceTable("str", json.asList());
         matchEquals("str", "'ha bar ha'");
     }
+//Tests written by group 13
 
+    //Annie
+    @Test
+    void testpubGetImageOptionsIfObjectEqualsNull(){
+        //creates a new object and assigns it to null
+        Object obj = null;
+        //create new empty hash map
+        Map<String, Object> map = new HashMap<>();
+        //assert that the returned value is equal to the expected value
+        assertEquals(engine.pubGetImageOptions(obj, "name"), map);
+    }
+
+    @Test   
+    void testpubGetImageOptionsIfObjectIsInstanceOfMap(){
+        //create new empty hash map
+        Map<String, Object> map = new HashMap<>();
+        //add key value pair to the map
+        map.put("name", "value");
+        //assert that the returned value is equal to the expected value
+        assertEquals(engine.pubGetImageOptions(map, "name"), map);
+    }
+
+    //Alexander
     @Test
     void testGetImageBytesWithString() {
         Map<String, Object> params = new HashMap<>();
