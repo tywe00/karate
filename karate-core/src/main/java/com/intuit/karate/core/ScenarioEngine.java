@@ -207,7 +207,8 @@ public class ScenarioEngine {
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 String exp = (String) entry.getValue();
                 Variable sv = evalKarateExpression(exp);
-                if (sv.isNull() && !isWithinParentheses(exp)) { // by default empty / null will be stripped, force null like this: '(null)'
+                if (sv.isNull() && !isWithinParentheses(exp)) { // by default empty / null will be stripped, force null
+                                                                // like this: '(null)'
                     toRemove.add(entry.getKey());
                 } else {
                     if (sv.isString()) {
@@ -269,7 +270,7 @@ public class ScenarioEngine {
     }
 
     // gatling =================================================================
-    //   
+    //
     private PerfEvent prevPerfEvent;
 
     public void logLastPerfEvent(String failureMessage) {
@@ -575,7 +576,7 @@ public class ScenarioEngine {
         return response;
     }
 
-    private void httpInvokeOnce() {
+    public void httpInvokeOnce() {
         Map<String, Map> cookies = getOrEvalAsMap(config.getCookies());
         if (cookies != null) {
             requestBuilder.cookies(cookies.values());
@@ -599,32 +600,49 @@ public class ScenarioEngine {
         Collection<RuntimeHook> allHooks = getRuntimeHooks();
         allHooks.forEach(h -> h.beforeHttpCall(httpRequest, runtime));
         try {
+            // Invoke the request
             response = requestBuilder.client.invoke(httpRequest);
         } catch (Exception e) {
-            long endTime = System.currentTimeMillis();
-            long responseTime = endTime - startTime;
-            String message = "http call failed after " + responseTime + " milliseconds for url: " + httpRequest.getUrl();
-            logger.error(e.getMessage() + ", " + message);
-            if (logger.isTraceEnabled()) {
-                String stacktrace = StringUtils.throwableToString(e);
-                if (stacktrace != null) {
-                    logger.trace(stacktrace);
-                }
-            }
-            if (perfEventName != null) {
-                PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
-                capturePerfEvent(pe); // failure flag and message should be set by logLastPerfEvent()
-            }
-            throw new KarateException(message + "\n" + e.getMessage(), e);
+            // Handle exception
+            handleHttpException(e, startTime, perfEventName);
         }
-        startTime = httpRequest.getStartTime(); // in case it was re-adjusted by http client
-        final long endTime = httpRequest.getEndTime();
-        final long responseTime = endTime - startTime;
+
+        // Process response
+        processResponse(startTime, httpRequest.getEndTime(), perfEventName);
+    }
+
+    private void handleHttpException(Exception e, long startTime, String perfEventName) {
+        long endTime = System.currentTimeMillis();
+        long responseTime = endTime - startTime;
+        String message = "http call failed after " + responseTime + " milliseconds for url: " +
+                httpRequest.getUrl();
+        logger.error(e.getMessage() + ", " + message);
+
+        if (logger.isTraceEnabled()) {
+            String stacktrace = StringUtils.throwableToString(e);
+            if (stacktrace != null) {
+                logger.trace(stacktrace);
+            }
+        }
+
+        if (perfEventName != null) {
+            PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
+            capturePerfEvent(pe); // failure flag and message should be set by logLastPerfEvent()
+        }
+
+        throw new KarateException(message + "\n" + e.getMessage(), e);
+    }
+
+    private void processResponse(long startTime, long endTime, String perfEventName) {
+        long responseTime = endTime - startTime;
         response.setResponseTime(responseTime);
+        Collection<RuntimeHook> allHooks = getRuntimeHooks();
         allHooks.forEach(h -> h.afterHttpCall(httpRequest, response, runtime));
+
         byte[] bytes = response.getBody();
         Object body;
         String responseType;
+
         ResourceType resourceType = response.getResourceType();
         if (resourceType != null && resourceType.isBinary()) {
             responseType = "binary";
@@ -643,24 +661,6 @@ public class ScenarioEngine {
             } else {
                 responseType = "string";
             }
-        }
-        setHiddenVariable(REQUEST_TIME_STAMP, startTime);
-        setVariable(RESPONSE_TIME, responseTime);
-        setVariable(RESPONSE_STATUS, response.getStatus());
-        setVariable(RESPONSE, body);
-        if (config.isLowerCaseResponseHeaders()) {
-            setVariable(RESPONSE_HEADERS, response.getHeadersWithLowerCaseNames());
-        } else {
-            setVariable(RESPONSE_HEADERS, response.getHeaders());
-        }
-        setHiddenVariable(RESPONSE_BYTES, bytes);
-        setHiddenVariable(RESPONSE_TYPE, responseType);
-        cookies = response.getCookies();
-        updateConfigCookies(cookies);
-        setHiddenVariable(RESPONSE_COOKIES, cookies);
-        if (perfEventName != null) {
-            PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, response.getStatus());
-            capturePerfEvent(pe);
         }
     }
 
@@ -749,7 +749,7 @@ public class ScenarioEngine {
                 throw new RuntimeException("unknown channel type");
         }
     }
-        
+
     private Channel channel(String type) {
         String factoryClass = getFactory(type);
         try {
@@ -762,50 +762,51 @@ public class ScenarioEngine {
         } catch (Exception e) {
             String message;
             if (e instanceof ClassNotFoundException) {
-                message = "cannot instantiate [" + type + "], is 'karate-" + type + "' included as a maven / gradle dependency ?";
+                message = "cannot instantiate [" + type + "], is 'karate-" + type
+                        + "' included as a maven / gradle dependency ?";
             } else {
                 message = e.getMessage();
             }
             logger.error(message);
             throw new RuntimeException(message, e);
-        }        
+        }
     }
-        
+
     public void produce(String type) {
         Channel channel = channel(type);
         channel.produce(runtime);
     }
-    
+
     public ChannelSession consume(String type) {
         Channel channel = channel(type);
-        return channel.consume(runtime);        
+        return channel.consume(runtime);
     }
-    
+
     public void register(String expression) {
         Variable v = evalKarateExpression(expression);
         Channel channel = channel("kafka");
         Map<String, Object> map = v.getValue();
         channel.register(runtime, map);
-    }       
-    
+    }
+
     public void schema(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setSchema(v.getAsString());
     }
-    
+
     public void topic(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setTopic(v.getAsString());
     }
-    
+
     public void key(String exp) {
         Variable v = evalKarateExpression(exp);
         requestBuilder.setKey(v.getAsString());
-    }    
-    
+    }
+
     public void value(String exp) {
         request(exp);
-    }     
+    }
 
     // http mock ===============================================================
     //
@@ -844,7 +845,7 @@ public class ScenarioEngine {
     }
 
     // websocket / async =======================================================
-    //   
+    //
     private List<WebSocketClient> webSocketClients;
     private CompletableFuture SIGNAL = new CompletableFuture();
 
@@ -947,7 +948,8 @@ public class ScenarioEngine {
             StringBuilder sb = new StringBuilder();
             sb.append("(function(){ if (arguments.length == 0) return ").append(invoke).append("();")
                     .append(" if (arguments.length == 1) return ").append(invoke).append("(arguments[0]);")
-                    .append(" if (arguments.length == 2) return ").append(invoke).append("(arguments[0], arguments[1]);")
+                    .append(" if (arguments.length == 2) return ").append(invoke)
+                    .append("(arguments[0], arguments[1]);")
                     .append(" return ").append(invoke).append("(arguments[0], arguments[1], arguments[2]) })");
             setHiddenVariable(methodName, evalJs(sb.toString()));
         }
@@ -956,7 +958,8 @@ public class ScenarioEngine {
     public void driver(String exp) {
         Variable v = evalKarateExpression(exp);
         // re-create driver within a test if needed
-        // but user is expected to call quit() OR use the driver keyword with a JSON argument
+        // but user is expected to call quit() OR use the driver keyword with a JSON
+        // argument
         if (driver == null || driver.isTerminated() || v.isMap()) {
             Map<String, Object> options = config.getCustomOptions().get(Config.DRIVER);
             if (options == null) {
@@ -992,7 +995,8 @@ public class ScenarioEngine {
             } catch (KarateException ke) {
                 throw ke;
             } catch (Exception e) {
-                String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? " + e.getMessage();
+                String message = "cannot instantiate robot, is 'karate-robot' included as a maven / gradle dependency ? "
+                        + e.getMessage();
                 logger.error(message);
                 throw new RuntimeException(message, e);
             }
@@ -1043,7 +1047,7 @@ public class ScenarioEngine {
             if (webSocketClients != null) {
                 webSocketClients.forEach(WebSocketClient::close);
             }
-            if (driver != null) { // TODO move this to Plugin.afterScenario()                
+            if (driver != null) { // TODO move this to Plugin.afterScenario()
                 DriverOptions options = driver.getOptions();
                 if (options.stop) {
                     driver.quit();
@@ -1077,7 +1081,7 @@ public class ScenarioEngine {
     }
 
     // doc =====================================================================
-    //    
+    //
     private KarateTemplateEngine templateEngine;
 
     private ResourceResolver resourceResolver;
@@ -1090,7 +1094,8 @@ public class ScenarioEngine {
         if (resourceResolver != null) {
             return resourceResolver;
         }
-        String prefixedPath = runtime.featureRuntime.rootFeature.featureCall.feature.getResource().getPrefixedParentPath();
+        String prefixedPath = runtime.featureRuntime.rootFeature.featureCall.feature.getResource()
+                .getPrefixedParentPath();
         return new ResourceResolver(prefixedPath);
     }
 
@@ -1138,7 +1143,8 @@ public class ScenarioEngine {
         return html;
     }
 
-    // compareImage =====================================================================
+    // compareImage
+    // =====================================================================
     //
     public void compareImage(String exp) {
         Variable v = evalKarateExpression(exp);
@@ -1183,7 +1189,7 @@ public class ScenarioEngine {
         return result;
     }
 
-    public byte[] pubGetImageBytes(Map<String, Object> params, String paramName){
+    public byte[] pubGetImageBytes(Map<String, Object> params, String paramName) {
         return getImageBytes(params, paramName);
     }
 
@@ -1205,7 +1211,7 @@ public class ScenarioEngine {
                 "invalid image comparison options: expected " + paramName + " to be one of string|byte[]");
     }
 
-     //public function to access test for getImageOptions
+    // public function to access test for getImageOptions
     public Map<String, Object> pubGetImageOptions(Object obj, String objName) {
         return getImageOptions(obj, objName);
     }
@@ -1227,9 +1233,9 @@ public class ScenarioEngine {
         return fn == null ? null : fn.toString();
     }
 
-    //==========================================================================        
-    //       
-    public void init() { // not in constructor because it has to be on Runnable.run() thread 
+    // ==========================================================================
+    //
+    public void init() { // not in constructor because it has to be on Runnable.run() thread
         JS = JsEngine.local();
         logger.trace("js context: {}", JS);
         runtime.magicVariables.forEach((k, v) -> JS.put(k, v));
@@ -1280,7 +1286,7 @@ public class ScenarioEngine {
                 ProxyExecutable pe = var.getValue();
                 Object result = JsEngine.execute(pe, args);
                 return new Variable(result);
-            case JAVA_FUNCTION:  // definitely a "call" with a single argument
+            case JAVA_FUNCTION: // definitely a "call" with a single argument
                 Function javaFunction = var.getValue();
                 Object arg = args.length == 0 ? null : args[0];
                 Object javaResult = javaFunction.apply(arg);
@@ -1352,7 +1358,8 @@ public class ScenarioEngine {
             throw new RuntimeException("'karate' is a reserved name");
         }
         if (REQUEST.equals(name) || "url".equals(name)) {
-            throw new RuntimeException("'" + name + "' is a reserved name, also use the form '* " + name + " <expression>' instead");
+            throw new RuntimeException(
+                    "'" + name + "' is a reserved name, also use the form '* " + name + " <expression>' instead");
         }
     }
 
@@ -1395,7 +1402,8 @@ public class ScenarioEngine {
     }
 
     private Map<String, Object> Map(Object callResult) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
 
     private static class EmbedAction {
@@ -1496,7 +1504,8 @@ public class ScenarioEngine {
                             return EmbedAction.remove();
                         }
                         if (forMatch && (result.isObject() || result.isArray())) {
-                            // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
+                            // preserve optional JSON chunk schema-like references as-is, they are needed
+                            // for future match attempts
                             return null;
                         }
                     }
@@ -1560,7 +1569,8 @@ public class ScenarioEngine {
                             if (jv.isNull()) {
                                 elementsToRemove.add(child);
                             } else if (forMatch && (jv.isXml() || jv.isObject())) {
-                                // preserve optional XML chunk schema-like references as-is, they are needed for future match attempts
+                                // preserve optional XML chunk schema-like references as-is, they are needed for
+                                // future match attempts
                             } else {
                                 child.setNodeValue(jv.getAsString());
                             }
@@ -1588,7 +1598,8 @@ public class ScenarioEngine {
                 recurseXmlEmbeddedExpressions(child, forMatch);
             }
         }
-        for (Node toRemove : elementsToRemove) { // because of how the above routine works, these are always of type TEXT_NODE
+        for (Node toRemove : elementsToRemove) { // because of how the above routine works, these are always of type
+                                                 // TEXT_NODE
             Node parent = toRemove.getParentNode(); // element containing the text-node
             Node grandParent = parent.getParentNode(); // parent element
             grandParent.removeChild(parent);
@@ -1607,7 +1618,8 @@ public class ScenarioEngine {
             Variable v = evalKarateExpression(replaceWith);
             replaceWith = v.getAsString();
         } catch (Exception e) {
-            throw new RuntimeException("expression error (replace string values need to be within quotes): " + e.getMessage());
+            throw new RuntimeException(
+                    "expression error (replace string values need to be within quotes): " + e.getMessage());
         }
         if (replaceWith == null) { // ignore if eval result is null
             return text;
@@ -1658,11 +1670,13 @@ public class ScenarioEngine {
         set(name, path, isWithinParentheses(exp), evalKarateExpression(exp), delete, viaTable);
     }
 
-    private void set(String name, String path, boolean isWithinParentheses, Variable value, boolean delete, boolean viaTable) {
+    private void set(String name, String path, boolean isWithinParentheses, Variable value, boolean delete,
+            boolean viaTable) {
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
         if (viaTable && value.isNull() && !isWithinParentheses) {
-            // by default, skip any expression that evaluates to null unless the user expressed
+            // by default, skip any expression that evaluates to null unless the user
+            // expressed
             // intent to over-ride by enclosing the expression in parentheses
             return;
         }
@@ -1671,7 +1685,8 @@ public class ScenarioEngine {
             name = nameAndPath.left;
             path = nameAndPath.right;
         }
-        Variable target = JS.bindings.hasMember(name) ? new Variable(JS.get(name)) : null; // should work in called features
+        Variable target = JS.bindings.hasMember(name) ? new Variable(JS.get(name)) : null; // should work in called
+                                                                                           // features
         if (isXmlPath(path)) {
             if (target == null || target.isNull()) {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
@@ -1747,9 +1762,10 @@ public class ScenarioEngine {
                 String expression = StringUtils.trimToNull(map.get(key));
                 if (expression == null) { // cucumber cell was left blank
                     continue; // skip
-                    // default behavior is to skip nulls when the expression evaluates 
+                    // default behavior is to skip nulls when the expression evaluates
                     // this is driven by the routine in setValueByPath
-                    // and users can over-ride this by simply enclosing the expression in parentheses
+                    // and users can over-ride this by simply enclosing the expression in
+                    // parentheses
                 }
                 String suffix;
                 try {
@@ -1796,7 +1812,7 @@ public class ScenarioEngine {
 
     public Match.Result match(Match.Type matchType, String expression, String path, String rhs) {
         String name = StringUtils.trimToEmpty(expression);
-        if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { // 
+        if (isDollarPrefixedJsonPath(name) || isXmlPath(name)) { //
             path = name;
             name = RESPONSE;
         }
@@ -1817,17 +1833,19 @@ public class ScenarioEngine {
             return matchHeader(matchType, path, rhs);
         }
         Variable actual;
-        // karate started out by "defaulting" to JsonPath on the LHS of a match so we have this kludge
-        // but we now handle JS expressions of almost any shape on the LHS, if in doubt, wrap in parentheses
+        // karate started out by "defaulting" to JsonPath on the LHS of a match so we
+        // have this kludge
+        // but we now handle JS expressions of almost any shape on the LHS, if in doubt,
+        // wrap in parentheses
         // actually it is not too bad - the XPath function check is the only odd one out
         // rules:
         // if not XPath function, wrapped in parentheses, involves function call
-        //      [then] JS eval
+        // [then] JS eval
         // else if XPath, JsonPath, JsonPath wildcard ".." or "*" or "[?"
-        //      [then] eval name, and do a JsonPath or XPath using the parsed path
+        // [then] eval name, and do a JsonPath or XPath using the parsed path
         if (isXmlPathFunction(path)
                 || (!name.startsWith("(") && !path.endsWith(")") && !path.contains(")."))
-                && (isDollarPrefixed(path) || isJsonPath(path) || isXmlPath(path))) {
+                        && (isDollarPrefixed(path) || isJsonPath(path) || isXmlPath(path))) {
             actual = evalKarateExpression(name);
             // edge case: java property getter, e.g. "driver.cookies"
             if (!actual.isMap() && !actual.isList() && !isXmlPath(path) && !isXmlPathFunction(path)) {
@@ -1951,7 +1969,7 @@ public class ScenarioEngine {
         switch (called.type) {
             case JS_FUNCTION:
             case JAVA_FUNCTION:
-                return arg == null ? executeFunction(called) : executeFunction(called, new Object[]{arg.getValue()});
+                return arg == null ? executeFunction(called) : executeFunction(called, new Object[] { arg.getValue() });
             case FEATURE:
                 // call result will be always a map or a list of maps (loop call result)
                 Object callResult = callFeature(called.getValue(), arg, -1, sharedScope);
@@ -1981,9 +1999,10 @@ public class ScenarioEngine {
 
     private Variable callOnceResult(ScenarioCall.Result result, boolean sharedScope) {
         if (sharedScope) { // if shared scope
-            vars.clear(); // clean slate            
+            vars.clear(); // clean slate
             if (result.vars != null) {
-                // shallow clone maps and lists so that subsequent steps don't modify data / references being passed around
+                // shallow clone maps and lists so that subsequent steps don't modify data /
+                // references being passed around
                 result.vars.forEach((k, v) -> vars.put(k, v.copy(false)));
             } else if (result.value != null) {
                 if (result.value.isMap()) {
@@ -2030,7 +2049,8 @@ public class ScenarioEngine {
             // this thread is the 'winner'
             logger.info(">> lock acquired, begin callonce: {}", cacheKey);
             Variable callResult = call(called, arg, sharedScope);
-            // we clone result (and config) here, to snapshot state at the point the callonce was invoked
+            // we clone result (and config) here, to snapshot state at the point the
+            // callonce was invoked
             Map<String, Variable> clonedVars = called.isFeature() && sharedScope ? shallowCloneVariables() : null;
             result = new ScenarioCall.Result(callResult.copy(false), new Config(config), clonedVars);
             CACHE.put(cacheKey, result);
@@ -2068,7 +2088,7 @@ public class ScenarioEngine {
                 if (isList) {
                     loopArg = iterator.hasNext() ? new Variable(iterator.next()) : Variable.NULL;
                 } else { // function
-                    loopArg = executeFunction(arg, new Object[]{loopIndex});
+                    loopArg = executeFunction(arg, new Object[] { loopIndex });
                 }
                 if (!loopArg.isMap()) {
                     if (!isList) {
@@ -2147,7 +2167,8 @@ public class ScenarioEngine {
         }
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             return new Variable(node);
-        } else { // make sure we create a fresh doc else future xpath would run against original root
+        } else { // make sure we create a fresh doc else future xpath would run against original
+                 // root
             return new Variable(XmlUtils.toNewDocument(node));
         }
     }
@@ -2173,7 +2194,7 @@ public class ScenarioEngine {
         }
         // don't re-evaluate if this is clearly a direct reference to a variable
         // this avoids un-necessary conversion of xml into a map in some cases
-        // e.g. 'Given request foo' - where foo is a Variable of type XML      
+        // e.g. 'Given request foo' - where foo is a Variable of type XML
         if (JS.bindings.hasMember(text)) {
             return new Variable(JS.get(text));
         }
